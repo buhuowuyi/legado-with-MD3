@@ -25,15 +25,19 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import io.legado.app.R
 import io.legado.app.ui.theme.LegadoTheme
 import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.widget.components.icon.AppIcon
 import io.legado.app.ui.widget.components.icon.AppIcons
 import io.legado.app.ui.widget.components.text.AppText
+import io.legado.app.utils.activity
 import kotlinx.coroutines.CoroutineScope
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -63,12 +67,24 @@ fun SearchBar(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val view = LocalView.current
     var hasFocused by rememberSaveable { mutableStateOf(false) }
+
+    // 在输入法动作回调内直接隐藏键盘，部分输入法 / ROM 会忽略这次请求：
+    // 先释放焦点，再分别走 Compose 控制器与窗口 Insets 两条通道。
+    val hideKeyboard = {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        view.activity?.window?.let { window ->
+            WindowCompat.getInsetsController(window, view).hide(WindowInsetsCompat.Type.ime())
+        }
+    }
 
     val submitSearch: (String) -> Unit = { value ->
         onSearch(value)
-        focusManager.clearFocus(force = true)
-        keyboardController?.hide()
+        hideKeyboard()
+        // 回调返回后的下一轮消息循环再兜底一次，避免隐藏请求被同一帧的后续焦点 / 输入命令覆盖
+        view.post { hideKeyboard() }
     }
 
     LaunchedEffect(autoFocus) {
