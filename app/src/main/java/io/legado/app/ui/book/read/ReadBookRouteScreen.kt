@@ -77,6 +77,7 @@ import io.legado.app.feature.reader.core.gesture.ReaderTapActionGrid
 import io.legado.app.feature.reader.core.model.readerBackgroundAlpha
 import io.legado.app.feature.reader.core.transition.ReaderTransitionMode
 import io.legado.app.feature.reader.core.transition.ReaderViewportLayerPolicy
+import io.legado.app.feature.reader.platform.ReaderSwitchPerf
 import io.legado.app.help.IntentHelp
 import io.legado.app.model.ReadBook
 import io.legado.app.model.SourceCallBack
@@ -206,7 +207,10 @@ fun ReadBookRouteScreen(
             state.isShowingSearchResult -> viewModel.onIntent(ReadBookIntent.ExitSearch)
             state.isAutoPage -> viewModel.onIntent(ReadBookIntent.StopAutoPage)
             state.menuState.canNavigateBack -> viewModel.onIntent(ReadBookIntent.ReadMenuBack)
-            else -> viewModel.onIntent(ReadBookIntent.CloseReadBook())
+            else -> {
+                ReaderSwitchPerf.arm("close")
+                viewModel.onIntent(ReadBookIntent.CloseReadBook())
+            }
         }
     }
     DisposableEffect(controller) {
@@ -584,6 +588,7 @@ fun ReadBookRouteScreen(
     LaunchedEffect(Unit) {
         withFrameNanos { }
         loadingFrameTracker.report(ReaderStartupFramePhase.LOADING)
+        ReaderSwitchPerf.event("open.loadingFrame")
     }
     LaunchedEffect(isDarkTheme) {
         controller.onAppThemeChanged(isDarkTheme)
@@ -602,6 +607,7 @@ fun ReadBookRouteScreen(
         if (readerPageWindow.current != null) {
             withFrameNanos { }
             contentFrameTracker.report(ReaderStartupFramePhase.CONTENT)
+            ReaderSwitchPerf.event("open.contentFrame")
         }
     }
 

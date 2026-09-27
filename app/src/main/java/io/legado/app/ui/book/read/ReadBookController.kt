@@ -55,6 +55,7 @@ import io.legado.app.feature.reader.legacy.failureReasonFor
 import io.legado.app.feature.reader.legacy.paginateLegacyReaderChapterSafely
 import io.legado.app.feature.reader.platform.ReaderAndroidPaginationStyle
 import io.legado.app.feature.reader.platform.ReaderPerfTrace
+import io.legado.app.feature.reader.platform.ReaderSwitchPerf
 import io.legado.app.help.TTS
 import io.legado.app.help.book.isOnLineTxt
 import io.legado.app.help.config.ReadBookConfig
@@ -658,6 +659,7 @@ class ReadBookController(
             // Width, height, density, or content insets participate in every page's geometry.
             // Do not bridge this reflow with an adjacent page from the previous viewport.
             directReaderMayReuseAdjacentPages = false
+            ReaderSwitchPerf.event("open.viewport")
             updateComposeReaderBackground(widthPx, heightPx)
             val style = LegacyReaderPaginationStyleFactory.create()
             viewportPaginationStyle = style

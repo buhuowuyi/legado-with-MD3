@@ -19,6 +19,7 @@ import io.legado.app.domain.usecase.GetReadingProgressUseCase
 import io.legado.app.domain.usecase.UploadReadingProgressUseCase
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.feature.reader.platform.ReaderPerfTrace
+import io.legado.app.feature.reader.platform.ReaderSwitchPerf
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.isLocal
 import io.legado.app.help.book.isLocalModified
@@ -102,6 +103,7 @@ class ReadBookLoadDelegate(
             else -> bookRepository.getBook(bookUrl)
         } ?: return@withContext null
         ReadBook.upReadBookConfig(book)
+        ReaderSwitchPerf.event("open.config.done")
         book
     }
 
@@ -141,6 +143,7 @@ class ReadBookLoadDelegate(
             ReadBook.upMsg(msg)
             AppLog.put(msg, it)
         }.onFinally {
+            ReaderSwitchPerf.event("open.data.done")
             ReadBook.saveRead()
         }
     }

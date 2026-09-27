@@ -22,6 +22,7 @@ import io.legado.app.feature.reader.legacy.LegacyReaderChapterPaginator
 import io.legado.app.feature.reader.legacy.LegacyReaderPageDecorationFactory
 import io.legado.app.feature.reader.platform.AndroidReaderHtmlSemanticTextResolver
 import io.legado.app.feature.reader.platform.ReaderAndroidPaginationStyle
+import io.legado.app.feature.reader.platform.ReaderSwitchPerf
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.ContentProcessor
@@ -1273,26 +1274,55 @@ object ReadBook : CoroutineScope by MainScope(), KoinComponent {
      * 任何一个前提不满足就直接返回, 由阅读页按原有流程加载.
      */
     fun prefetchForOpen(bookUrl: String) {
-        if (callBack != null) return
-        if (BaseReadAloudService.isRun) return
-        if (book?.bookUrl == bookUrl && readerChapterInputWindow.current != null) return
+        ReaderSwitchPerf.event("open.prefetch.start")
+        if (callBack != null) {
+            ReaderSwitchPerf.event("open.prefetch.skip:callBack")
+            return
+        }
+        if (BaseReadAloudService.isRun) {
+            ReaderSwitchPerf.event("open.prefetch.skip:aloud")
+            return
+        }
+        if (book?.bookUrl == bookUrl && readerChapterInputWindow.current != null) {
+            ReaderSwitchPerf.event("open.prefetch.skip:loaded")
+            return
+        }
         ioScope.launch {
-            val book = appDb.bookDao.getBook(bookUrl) ?: return@launch
+            val book = appDb.bookDao.getBook(bookUrl) ?: run {
+                ReaderSwitchPerf.event("open.prefetch.skip:noBook")
+                return@launch
+            }
             // 需要联网补目录、本地文件缺失或已改动的, 都交给阅读页的完整初始化流程
-            if (!book.isLocal && book.tocUrl.isEmpty()) return@launch
+            if (!book.isLocal && book.tocUrl.isEmpty()) {
+                ReaderSwitchPerf.event("open.prefetch.skip:noToc")
+                return@launch
+            }
             if (book.isLocal) {
-                if (book.isLocalModified()) return@launch
+                if (book.isLocalModified()) {
+                    ReaderSwitchPerf.event("open.prefetch.skip:modified")
+                    return@launch
+                }
                 val readable = runCatching {
                     LocalBook.getBookInputStream(book).close()
                 }.isSuccess
-                if (!readable) return@launch
+                if (!readable) {
+                    ReaderSwitchPerf.event("open.prefetch.skip:unreadable")
+                    return@launch
+                }
             }
-            if (appDb.bookChapterDao.getChapterCount(bookUrl) == 0) return@launch
-            if (callBack != null) return@launch
+            if (appDb.bookChapterDao.getChapterCount(bookUrl) == 0) {
+                ReaderSwitchPerf.event("open.prefetch.skip:noChapters")
+                return@launch
+            }
+            if (callBack != null) {
+                ReaderSwitchPerf.event("open.prefetch.skip:callBackLate")
+                return@launch
+            }
             resetData(book)
             // 不能走 loadContent: Coroutine.async 会先派发到主线程,
             // 而导航动画和阅读页组合正把主线程占满, 预加载会排到几百毫秒之后.
             loadContentAwait(durChapterIndex, resetPageOffset = true)
+            ReaderSwitchPerf.event("open.prefetch.done")
         }
     }
 

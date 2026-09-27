@@ -3,6 +3,7 @@ package io.legado.app.ui.main
 import android.app.Activity
 import android.content.Intent
 import androidx.navigation3.runtime.NavKey
+import io.legado.app.feature.reader.platform.ReaderSwitchPerf
 import io.legado.app.model.ReadBook
 import io.legado.app.ui.rss.article.MainRouteRssSort
 import io.legado.app.ui.rss.read.MainRouteRssRead
@@ -357,7 +358,11 @@ object MainNavigator {
         }
         if (backStack.size > 1) {
             backNavigationInProgress = true
-            backStack.removeLastOrNull()
+            backStack.removeLastOrNull()?.let { removed ->
+                if (removed is MainRouteReadBook) {
+                    ReaderSwitchPerf.event("close.pop")
+                }
+            }
             tracker?.onBackStackChanged(backStack)
         } else {
             activity.finish()

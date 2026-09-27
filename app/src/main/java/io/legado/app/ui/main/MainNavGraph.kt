@@ -41,6 +41,7 @@ import coil3.ImageLoader
 import io.legado.app.R
 import io.legado.app.constant.BookType
 import io.legado.app.constant.Status
+import io.legado.app.feature.reader.platform.ReaderSwitchPerf
 import io.legado.app.domain.model.BookSearchScope
 import io.legado.app.domain.model.settings.AppUiConfiguration
 import io.legado.app.help.coil.CoverExtras
@@ -438,6 +439,7 @@ fun MainActivity.mainEntryProvider(
                 } else if (!book.isLocal && book.isImage && showMangaUi) {
                     onNavigateToRoute(MainRouteReadManga(bookUrl = book.bookUrl))
                 } else {
+                    ReaderSwitchPerf.arm("open")
                     onNavigateToRoute(
                         MainRouteReadBook(
                             bookUrl = book.bookUrl,
@@ -713,6 +715,7 @@ fun MainActivity.mainEntryProvider(
             }
         }
     ) { route ->
+        ReaderSwitchPerf.event("open.entry.composed")
         val readBookViewModel = koinViewModel<ReadBookViewModel>(
             key = "ReadBook:${route.bookUrl ?: "last-read"}"
         )
@@ -828,6 +831,7 @@ fun MainActivity.mainEntryProvider(
             }
             lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
             onDispose {
+                ReaderSwitchPerf.event("close.dispose.begin")
                 pauseReader()
                 readBookViewModel.onIntent(ReadBookIntent.OnDispose)
                 lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
@@ -840,6 +844,7 @@ fun MainActivity.mainEntryProvider(
                 MainActivity.hasActiveReadBookRoute = false
                 controller.clearTts()
                 this@mainEntryProvider.toggleSystemBar(configuration.appShell.showStatusBar)
+                ReaderSwitchPerf.event("close.dispose.end")
             }
         }
 
