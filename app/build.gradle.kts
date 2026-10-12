@@ -36,6 +36,15 @@ android {
     namespace = "io.legado.app"
 
     signingConfigs {
+        // 固定 debug 签名：CI 的临时 runner 每次生成不同 debug 密钥，导致跨构建无法
+        // 覆盖安装、测试数据丢失。debug 密钥本身无保密性（Android 团队协作标准做法），
+        // 固定后 adb install -r 即可升级且保留应用数据。
+        create("stableDebug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "debug"
+            keyPassword = "android"
+        }
         if (project.hasProperty("RELEASE_STORE_FILE")) {
             create("myConfig") {
                 storeFile = file(project.property("RELEASE_STORE_FILE") as String)
@@ -107,6 +116,8 @@ android {
             applicationIdSuffix = ".debug"
             if (project.hasProperty("RELEASE_STORE_FILE")) {
                 signingConfig = signingConfigs.getByName("myConfig")
+            } else {
+                signingConfig = signingConfigs.getByName("stableDebug")
             }
             manifestPlaceholders["app_name"] = "@string/app_name"
             versionNameSuffix = "_debug"
