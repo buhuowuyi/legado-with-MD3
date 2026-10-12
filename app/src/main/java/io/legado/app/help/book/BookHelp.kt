@@ -540,9 +540,29 @@ object BookHelp {
      * 检测该章节是否下载
      */
     fun countCachedChapters(book: Book): Int {
-        return appDb.bookChapterDao.getChapterList(book.bookUrl).count { chapter ->
-            chapter.isVolume || isChapterCacheComplete(book, chapter)
+        val chapters = appDb.bookChapterDao.getChapterList(book.bookUrl)
+        if (chapters.isEmpty()) return 0
+        // isLocalTxt 的 hasContent 恒为 true
+        if (book.isLocalTxt) return chapters.size
+        // 性能：原实现逐章做磁盘 stat（1072 章 = 2000+ 次查询，真机为开书卡顿的
+        // 后台帮凶）。改为一次列出缓存目录后内存比对，语义与逐章查询一致。
+        val cachedFiles = getChapterFiles(book)
+        return chapters.count { chapter ->
+            chapter.isVolume || isChapterCacheCompleteFast(book, chapter, cachedFiles)
         }
+    }
+
+    private fun isChapterCacheCompleteFast(
+        book: Book,
+        chapter: BookChapter,
+        cachedFiles: Set<String>,
+    ): Boolean {
+        // 对照 hasContent：卷目录章节视为已缓存，其余按缓存目录文件名判断
+        val contentCached = (chapter.isVolume && chapter.url.startsWith(chapter.title)) ||
+                chapter.getFileName() in cachedFiles
+        if (!contentCached) return false
+        // 对照 isChapterCacheComplete：本地书只看正文文件，在线书还需图片齐全
+        return book.isLocal || hasImageFilesCached(book, chapter)
     }
 
     fun isChapterCacheComplete(book: Book, bookChapter: BookChapter): Boolean {
