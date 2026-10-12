@@ -14,8 +14,19 @@ import kotlinx.coroutines.flow.map
 
 class MangaSettingsRepository : MangaSettingsGateway {
 
+    // 性能：与 ReadSettingsRepository 相同的快照缓存，避免每次读取重建对象。
+    private var settingsCache: Pair<Preferences, MangaSettings>? = null
+
     override val currentSettings: MangaSettings
-        get() = AppConfigStore.preferences.toMangaSettings()
+        get() {
+            val preferences = AppConfigStore.preferences
+            settingsCache?.let { (cachedFrom, cached) ->
+                if (cachedFrom === preferences) return cached
+            }
+            return preferences.toMangaSettings().also {
+                settingsCache = preferences to it
+            }
+        }
 
     override val settings: Flow<MangaSettings> = AppConfigStore.preferencesFlow
         .map { it.toMangaSettings() }

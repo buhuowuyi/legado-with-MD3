@@ -23,8 +23,22 @@ class ReadSettingsRepository(
     private val preferencesFlow: StateFlow<Preferences> = AppConfigStore.preferencesFlow,
 ) : ReadSettingsGateway {
 
+    // 性能：currentSettings 在 Compose 组合期被高频读取，原先每次读取都执行
+    // 100+ 次 compatDsValue 并重建整个对象（真机采样为开书卡顿的主线程热点）。
+    // 按 preferencesFlow.value 的引用做快照缓存：StateFlow 只有 DataStore 发新值才换引用，
+    // 值语义与逐次重建完全一致，仅省去重复构建。
+    private var settingsCache: Pair<Preferences, ReadSettings>? = null
+
     override val currentSettings: ReadSettings
-        get() = preferencesFlow.value.toReadSettings()
+        get() {
+            val preferences = preferencesFlow.value
+            settingsCache?.let { (cachedFrom, cached) ->
+                if (cachedFrom === preferences) return cached
+            }
+            return preferences.toReadSettings().also {
+                settingsCache = preferences to it
+            }
+        }
 
     override val settings: Flow<ReadSettings> = preferencesFlow
         .map { preferences ->
