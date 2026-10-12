@@ -43,7 +43,7 @@ object ReaderSwitchPerf {
     @Volatile
     private var probeLastScheduledAt = 0L
 
-    private val probe = Runnable {
+    private val probe: Runnable = Runnable {
         val now = SystemClock.elapsedRealtime()
         val scheduledAt = probeLastScheduledAt
         if (scheduledAt != 0L) {
