@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +37,17 @@ data class SplicedColumnGroupState(
     val currentIndex: () -> Int,
     val incrementIndex: () -> Unit
 )
+
+/**
+ * 组合期顺序计数器（非快照状态）。
+ *
+ * 组内子项自上而下顺序组合，普通计数器在单次组合内的取值与快照状态完全一致；
+ * 但不产生失效通知——原先组合期每写一次 mutableStateOf 都会使后续子项的读全部失效，
+ * N 个子项级联成 O(N²) 重组（真机采样证实为关书/设置页重组风暴的源头）。
+ */
+private class SplicedColumnIndexCounter {
+    var value: Int = 0
+}
 
 @Composable
 fun SplicedColumnGroup(
@@ -67,13 +77,13 @@ fun SplicedColumnGroup(
     } else {
         null
     }
-    val currentIndex = remember { mutableIntStateOf(0) }
+    val indexCounter = remember { SplicedColumnIndexCounter() }
 
     val groupState = remember(enableItemDivider) {
         SplicedColumnGroupState(
             enableItemDivider = enableItemDivider,
-            currentIndex = { currentIndex.intValue },
-            incrementIndex = { currentIndex.intValue++ }
+            currentIndex = { indexCounter.value },
+            incrementIndex = { indexCounter.value++ }
         )
     }
 
@@ -106,7 +116,7 @@ fun SplicedColumnGroup(
                                 .appContainerBackground(AppContainerBackgroundType.Large)
                         )
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            currentIndex.intValue = 0
+                            indexCounter.value = 0
                             items()
                         }
                     }
@@ -127,7 +137,7 @@ fun SplicedColumnGroup(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        currentIndex.intValue = 0
+                        indexCounter.value = 0
                         items()
                     }
                 }
